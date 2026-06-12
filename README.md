@@ -22,17 +22,9 @@ A simple Streamlit dashboard that displays COVID-19 India state-wise data using 
 
 https://data.covid19india.org/csv/latest/states.csv
 
-## Installation
+## project
 
-```bash
-pip install streamlit requests
-```
-
-## Run the Project
-
-```bash
-streamlit run app.py
-```
+https://devarshproject.streamlit.app/
 
 ## Topics
 
