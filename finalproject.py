@@ -118,7 +118,7 @@ for state, coords in state_coordinates.items():
             "cases": int(latest_row["Confirmed"])
         })
 
-with open("templates/globe.html","r",encoding="utf-8") as file:
+with open("work.html","r",encoding="utf-8") as file:
     html_template = file.read()
 
 html_template = html_template.replace(
