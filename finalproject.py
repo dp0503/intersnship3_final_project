@@ -269,4 +269,3 @@ This dashboard analyzes COVID-19 data using official India COVID records.
 The interactive 3D globe visualizes COVID case distribution across major states of India.
 Hover over any marker on the globe to see state information and confirmed case counts.
 """)
-```
