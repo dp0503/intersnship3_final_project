@@ -1,3 +1,4 @@
+
 import streamlit as st
 import requests
 import csv
@@ -22,7 +23,12 @@ reader = csv.DictReader(csv_data)
 
 data = list(reader)
 
-states = sorted(set(row["State"] for row in data))
+states = sorted(
+    set(
+        row["State"]
+        for row in data
+    )
+)
 
 selected_state = st.selectbox(
     "Select State",
@@ -30,27 +36,16 @@ selected_state = st.selectbox(
 )
 
 state_data = [
-    row for row in data
+    row
+    for row in data
     if row["State"] == selected_state
 ]
 
 latest = state_data[-1]
 
-st.header(f"COVID Report - {selected_state}")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric("Confirmed", latest["Confirmed"])
-
-with col2:
-    st.metric("Recovered", latest["Recovered"])
-
-with col3:
-    st.metric("Deaths", latest["Deceased"])
-
-confirmed = int(latest["Confirmed"]) if latest["Confirmed"] else 0
-recovered = int(latest["Recovered"]) if latest["Recovered"] else 0
+confirmed = int(latest["Confirmed"] or 0)
+recovered = int(latest["Recovered"] or 0)
+deaths = int(latest["Deceased"] or 0)
 
 recovery_rate = (
     (recovered / confirmed) * 100
@@ -58,13 +53,38 @@ recovery_rate = (
     else 0
 )
 
-st.write(f"### Recovery Rate: {recovery_rate:.2f}%")
+st.header(f"COVID Report - {selected_state}")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Confirmed Cases",
+        f"{confirmed:,}"
+    )
+
+with col2:
+    st.metric(
+        "Recovered",
+        f"{recovered:,}"
+    )
+
+with col3:
+    st.metric(
+        "Deaths",
+        f"{deaths:,}"
+    )
+
+st.write(
+    f"### Recovery Rate: {recovery_rate:.2f}%"
+)
 
 st.subheader("Recent Records")
 
 table_data = []
 
 for row in state_data[-10:]:
+
     table_data.append({
         "Date": row["Date"],
         "Confirmed": row["Confirmed"],
@@ -79,23 +99,27 @@ st.subheader("Confirmed Cases Trend")
 chart_data = {}
 
 for row in state_data:
-    chart_data[row["Date"]] = int(row["Confirmed"])
+    chart_data[row["Date"]] = int(
+        row["Confirmed"] or 0
+    )
 
 st.line_chart(chart_data)
 
+# ---------------------------------
 # Globe Data
+# ---------------------------------
 
 state_coordinates = {
-    "Gujarat":[23.0225,72.5714],
-    "Maharashtra":[19.0760,72.8777],
-    "Delhi":[28.6139,77.2090],
-    "Rajasthan":[26.9124,75.7873],
-    "Karnataka":[12.9716,77.5946],
-    "Tamil Nadu":[13.0827,80.2707],
-    "Punjab":[30.7333,76.7794],
-    "West Bengal":[22.5726,88.3639],
-    "Uttar Pradesh":[26.8467,80.9462],
-    "Madhya Pradesh":[23.2599,77.4126]
+    "Gujarat": [23.0225, 72.5714],
+    "Maharashtra": [19.0760, 72.8777],
+    "Delhi": [28.6139, 77.2090],
+    "Rajasthan": [26.9124, 75.7873],
+    "Karnataka": [12.9716, 77.5946],
+    "Tamil Nadu": [13.0827, 80.2707],
+    "Punjab": [30.7333, 76.7794],
+    "West Bengal": [22.5726, 88.3639],
+    "Uttar Pradesh": [26.8467, 80.9462],
+    "Madhya Pradesh": [23.2599, 77.4126]
 }
 
 globe_points = []
@@ -103,7 +127,8 @@ globe_points = []
 for state, coords in state_coordinates.items():
 
     matching = [
-        row for row in data
+        row
+        for row in data
         if row["State"] == state
     ]
 
@@ -111,14 +136,44 @@ for state, coords in state_coordinates.items():
 
         latest_row = matching[-1]
 
+        confirmed_cases = int(
+            latest_row["Confirmed"] or 0
+        )
+
+        recovered_cases = int(
+            latest_row["Recovered"] or 0
+        )
+
+        death_cases = int(
+            latest_row["Deceased"] or 0
+        )
+
+        recovery_percent = (
+            round(
+                (recovered_cases / confirmed_cases) * 100,
+                2
+            )
+            if confirmed_cases > 0
+            else 0
+        )
+
         globe_points.append({
+
             "name": state,
             "lat": coords[0],
             "lng": coords[1],
-            "cases": int(latest_row["Confirmed"])
+            "cases": confirmed_cases,
+            "deaths": death_cases,
+            "recovery_rate": recovery_percent
+
         })
 
-with open("work.html","r",encoding="utf-8") as file:
+with open(
+    "work.html",
+    "r",
+    encoding="utf-8"
+) as file:
+
     html_template = file.read()
 
 html_template = html_template.replace(
@@ -126,24 +181,23 @@ html_template = html_template.replace(
     json.dumps(globe_points)
 )
 
-st.subheader("🌍 Interactive COVID Globe")
+st.subheader("🌍 Premium Interactive COVID Globe")
 
 components.html(
     html_template,
-    height=700
+    height=850
 )
 
 st.subheader("Case Study Conclusion")
 
-st.write(f'''
+st.write(f"""
 State: {selected_state}
 
-Total Confirmed Cases: {latest["Confirmed"]}
+Total Confirmed Cases: {confirmed:,}
 
-Total Recovered Cases: {latest["Recovered"]}
+Total Recovered Cases: {recovered:,}
 
-Total Death Cases: {latest["Deceased"]}
+Total Death Cases: {deaths:,}
 
 Recovery Rate: {recovery_rate:.2f}%
-''')
-
+""")

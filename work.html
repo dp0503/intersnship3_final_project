@@ -7,25 +7,62 @@
 
 <style>
 
-body{
+html,body{
     margin:0;
+    overflow:hidden;
+    background:#050816;
 }
 
 #globeViz{
     width:100%;
-    height:700px;
+    height:100vh;
+}
+
+.popup{
+
+    backdrop-filter: blur(20px);
+
+    background: rgba(15,23,42,0.85);
+
+    border:1px solid rgba(255,255,255,0.15);
+
+    border-radius:18px;
+
+    padding:15px;
+
+    color:white;
+
+    min-width:220px;
+
+    box-shadow:
+    0 0 30px rgba(0,255,255,.25);
+
+    animation:popup .3s ease;
+}
+
+.title{
+    font-size:18px;
+    font-weight:bold;
+    margin-bottom:8px;
+}
+
+.value{
+    color:#00ffff;
+    font-weight:bold;
 }
 
 @keyframes popup{
+
     from{
         opacity:0;
-        transform:scale(0.8);
+        transform:translateY(15px);
     }
 
     to{
         opacity:1;
-        transform:scale(1);
+        transform:translateY(0px);
     }
+
 }
 
 </style>
@@ -41,45 +78,124 @@ body{
 const points = __POINTS__;
 
 const globe = Globe()
-(document.getElementById('globeViz'))
+(document.getElementById("globeViz"))
 
 .globeImageUrl(
-'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'
+"https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
 )
 
 .bumpImageUrl(
-'https://unpkg.com/three-globe/example/img/earth-topology.png'
+"https://unpkg.com/three-globe/example/img/earth-topology.png"
 )
 
 .backgroundImageUrl(
-'https://unpkg.com/three-globe/example/img/night-sky.png'
+"https://unpkg.com/three-globe/example/img/night-sky.png"
 )
+
+.showAtmosphere(true)
+
+.atmosphereColor("#00ffff")
+
+.atmosphereAltitude(0.25)
 
 .pointsData(points)
 
-.pointAltitude(0.01)
+.pointAltitude(d =>
+Math.max(
+0.08,
+d.cases / 10000000
+)
+)
 
-.pointRadius(0.08)
+.pointRadius(d =>
+Math.max(
+0.15,
+d.cases / 50000000
+)
+)
 
-.pointColor(() => 'rgba(0,0,0,0)')
+.pointColor(d => {
+
+if(d.cases > 5000000)
+return "#ff0033";
+
+if(d.cases > 1000000)
+return "#ffaa00";
+
+return "#00ffff";
+
+})
+
+.ringsData(points)
+
+.ringColor(() =>
+t => `rgba(0,255,255,${1-t})`
+)
+
+.ringMaxRadius(4)
+
+.ringPropagationSpeed(1.5)
+
+.ringRepeatPeriod(1200)
 
 .pointLabel(d => `
-<div style="
-padding:14px;
-background:rgba(20,20,20,0.95);
-color:white;
-border-radius:12px;
-animation:popup .2s ease-in-out;
-">
-📍 ${d.name}<br>
-🦠 Cases: ${d.cases.toLocaleString()}
+<div class="popup">
+
+<div class="title">
+📍 ${d.name}
+</div>
+
+🦠 Cases:
+<span class="value">
+${d.cases.toLocaleString()}
+</span>
+
+<br><br>
+
+💚 Recovery Rate:
+<span class="value">
+${d.recovery_rate}%
+</span>
+
+<br><br>
+
+☠ Deaths:
+<span class="value">
+${d.deaths.toLocaleString()}
+</span>
+
 </div>
 `)
 
-.animateIn(true);
+.onPointClick(point => {
+
+globe.pointOfView(
+{
+lat: point.lat,
+lng: point.lng,
+altitude: 1.2
+},
+1500
+);
+
+});
 
 globe.controls().autoRotate = true;
-globe.controls().autoRotateSpeed = 0.15;
+globe.controls().autoRotateSpeed = 0.25;
+globe.controls().enableZoom = true;
+
+setTimeout(() => {
+
+globe.pointOfView(
+{
+lat:22,
+lng:78,
+altitude:2.5
+},
+2000
+);
+
+},1000);
 
 </script>
 
