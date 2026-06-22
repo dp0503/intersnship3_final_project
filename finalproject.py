@@ -1,61 +1,87 @@
+```python
 import streamlit as st
 import requests
 import csv
 from io import StringIO
-import pandas as pd
-import pydeck as pdk
+import streamlit.components.v1 as components
+import json
 
-st.set_page_config(page_title="COVID-19 India Dashboard", layout="wide")
+st.set_page_config(
+    page_title="COVID-19 India Dashboard",
+    layout="wide"
+)
 
 st.title("🦠 COVID-19 India Case Study Dashboard")
 
-# Download CSV data
+# Fetch Data
 url = "https://data.covid19india.org/csv/latest/states.csv"
-response = requests.get(url)
 
-# Read CSV
-csv_data = StringIO(response.text)
-reader = csv.DictReader(csv_data)
+try:
+    response = requests.get(url)
+    response.raise_for_status()
 
-data = list(reader)
+    csv_data = StringIO(response.text)
+    reader = csv.DictReader(csv_data)
+    data = list(reader)
 
-# Get unique states
+except Exception as e:
+    st.error(f"Error loading data: {e}")
+    st.stop()
+
+# State Selection
 states = sorted(set(row["State"] for row in data))
 
-selected_state = st.selectbox("Select State", states)
+selected_state = st.selectbox(
+    "Select State",
+    states
+)
 
-# Filter selected state data
-state_data = [row for row in data if row["State"] == selected_state]
+state_data = [
+    row for row in data
+    if row["State"] == selected_state
+]
 
-# Latest record
 latest = state_data[-1]
 
 st.header(f"COVID Report - {selected_state}")
 
+# Metrics
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.metric("Confirmed", latest["Confirmed"])
+    st.metric(
+        "Confirmed Cases",
+        latest["Confirmed"]
+    )
 
 with col2:
-    st.metric("Recovered", latest["Recovered"])
+    st.metric(
+        "Recovered Cases",
+        latest["Recovered"]
+    )
 
 with col3:
-    st.metric("Deaths", latest["Deceased"])
+    st.metric(
+        "Death Cases",
+        latest["Deceased"]
+    )
 
 # Recovery Rate
 confirmed = int(latest["Confirmed"]) if latest["Confirmed"] else 0
 recovered = int(latest["Recovered"]) if latest["Recovered"] else 0
 
-if confirmed > 0:
-    recovery_rate = (recovered / confirmed) * 100
-else:
-    recovery_rate = 0
+recovery_rate = (
+    (recovered / confirmed) * 100
+    if confirmed > 0
+    else 0
+)
 
-st.write(f"### Recovery Rate: {recovery_rate:.2f}%")
+st.success(
+    f"Recovery Rate: {recovery_rate:.2f}%"
+)
 
-# Table
-st.subheader("Recent Records")
+# Recent Records Table
+st.subheader("📋 Recent Records")
 
 table_data = []
 
@@ -69,23 +95,25 @@ for row in state_data[-10:]:
 
 st.table(table_data)
 
-# Line Chart
-st.subheader("Confirmed Cases Trend")
+# Trend Chart
+st.subheader("📈 Confirmed Cases Trend")
 
-confirmed_chart = {}
+chart_data = {}
 
 for row in state_data:
-    confirmed_chart[row["Date"]] = int(row["Confirmed"])
+    try:
+        chart_data[row["Date"]] = int(row["Confirmed"])
+    except:
+        pass
 
-st.line_chart(confirmed_chart)
+st.line_chart(chart_data)
 
-# -----------------------------
+# ---------------------------
 # 3D Globe Section
-# -----------------------------
+# ---------------------------
 
-st.subheader("🌍 Interactive COVID Globe")
+st.subheader("🌍 Interactive 3D COVID Globe")
 
-# State Coordinates
 state_coordinates = {
     "Gujarat": [23.0225, 72.5714],
     "Maharashtra": [19.0760, 72.8777],
@@ -103,9 +131,13 @@ globe_data = []
 
 for state, coords in state_coordinates.items():
 
-    matching = [row for row in data if row["State"] == state]
+    matching = [
+        row for row in data
+        if row["State"] == state
+    ]
 
     if matching:
+
         latest_row = matching[-1]
 
         try:
@@ -114,56 +146,113 @@ for state, coords in state_coordinates.items():
             cases = 0
 
         globe_data.append({
-            "State": state,
+            "name": state,
             "lat": coords[0],
-            "lon": coords[1],
-            "Cases": cases,
-            "radius": max(cases / 50000, 10000)
+            "lng": coords[1],
+            "cases": cases,
+            "size": max(cases / 1000000, 0.5)
         })
 
-df = pd.DataFrame(globe_data)
+points_json = json.dumps(globe_data)
 
-layer = pdk.Layer(
-    "ScatterplotLayer",
-    data=df,
-    get_position=["lon", "lat"],
-    get_radius="radius",
-    pickable=True,
-    auto_highlight=True,
-    stroked=True,
-    filled=True
+globe_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="https://unpkg.com/globe.gl"></script>
+
+<style>
+
+body {{
+    margin: 0;
+    background: transparent;
+}}
+
+#globeViz {{
+    width: 100%;
+    height: 750px;
+}}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="globeViz"></div>
+
+<script>
+
+const points = {points_json};
+
+const globe = Globe()
+(document.getElementById('globeViz'))
+
+.globeImageUrl(
+'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'
 )
 
-view_state = pdk.ViewState(
-    latitude=22.5,
-    longitude=78.9,
-    zoom=3.8,
-    pitch=45
+.bumpImageUrl(
+'https://unpkg.com/three-globe/example/img/earth-topology.png'
 )
 
-deck = pdk.Deck(
-    map_style="mapbox://styles/mapbox/dark-v10",
-    initial_view_state=view_state,
-    layers=[layer],
-    tooltip={
-        "html": """
-        <b>{State}</b><br/>
-        Confirmed Cases: {Cases}
-        """,
-        "style": {
-            "backgroundColor": "black",
-            "color": "white"
-        }
-    }
+.backgroundImageUrl(
+'https://unpkg.com/three-globe/example/img/night-sky.png'
 )
 
-st.pydeck_chart(deck)
+.pointsData(points)
 
-# -----------------------------
-# Case Study
-# -----------------------------
+.pointAltitude(0.18)
 
-st.subheader("Case Study Conclusion")
+.pointRadius('size')
+
+.pointColor(() => '#ff4444')
+
+.pointLabel(d => `
+<div style="
+padding:12px;
+background:white;
+color:black;
+border-radius:10px;
+font-family:Arial;
+font-size:14px;
+">
+<b>${{d.name}}</b><br>
+Confirmed Cases: ${{d.cases.toLocaleString()}}
+</div>
+`)
+
+.animateIn(true);
+
+globe.controls().autoRotate = true;
+globe.controls().autoRotateSpeed = 0.4;
+
+globe.pointOfView(
+{{
+lat: 22,
+lng: 78,
+altitude: 2.5
+}},
+3000
+);
+
+</script>
+
+</body>
+</html>
+"""
+
+components.html(
+    globe_html,
+    height=750
+)
+
+# ---------------------------
+# Case Study Conclusion
+# ---------------------------
+
+st.subheader("📝 Case Study Conclusion")
 
 st.write(f"""
 **State:** {selected_state}
@@ -176,5 +265,8 @@ st.write(f"""
 
 **Recovery Rate:** {recovery_rate:.2f}%
 
-This case study analyzes COVID-19 data for the selected state using official records. The interactive globe displays COVID case distribution across major Indian states. Hover over a bubble to view state information and confirmed case counts.
+This dashboard analyzes COVID-19 data using official India COVID records.
+The interactive 3D globe visualizes COVID case distribution across major states of India.
+Hover over any marker on the globe to see state information and confirmed case counts.
 """)
+```
